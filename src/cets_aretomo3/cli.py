@@ -78,15 +78,38 @@ def main():
     default=None,
     help="The -FlipVol the run used (needed to describe <stem>_Vol.mrc; never inferred).",
 )
-@click.option("--mdoc-dir", "mdoc_dir", type=click.Path(file_okay=False, exists=True), default=None)
-@click.option("--tilt-stack-dir", "tilt_stack_dir", type=click.Path(file_okay=False, exists=True), default=None)
-@click.option("--dose-convention", "dose_convention", type=click.Choice(["exclusive", "inclusive"]), default=None)
+@click.option(
+    "--mdoc-dir",
+    "mdoc_dir",
+    type=click.Path(file_okay=False, exists=True),
+    default=None,
+    help="Directory holding <stem>.mdoc (default: next to the .aln).",
+)
+@click.option(
+    "--tilt-stack-dir",
+    "tilt_stack_dir",
+    type=click.Path(file_okay=False, exists=True),
+    default=None,
+    help="Directory holding <stem>.mrc/.st/.mrcs (default: next to the .aln).",
+)
+@click.option(
+    "--dose-convention",
+    "dose_convention",
+    type=click.Choice(["exclusive", "inclusive"]),
+    default=None,
+    help="Whether accumulated_dose excludes the image's own exposure [exclusive, warned].",
+)
 @click.option("--dose-per-tilt", "dose_per_tilt", type=float, default=None, help="Constant per-image exposure (e/Å²).")
 @click.option(
     "--drop-locals", "drop_locals", is_flag=True, default=None, help="Keep the global rows of a local alignment."
 )
-@click.option("--no-ctf", "no_ctf", is_flag=True, default=None)
-@click.option("--paths", type=click.Choice(["relative", "absolute"]), default=None)
+@click.option("--no-ctf", "no_ctf", is_flag=True, default=None, help="Ignore <stem>_CTF.txt.")
+@click.option(
+    "--paths",
+    type=click.Choice(["relative", "absolute"]),
+    default=None,
+    help="How file paths are written into the document [relative, warned].",
+)
 @click.option("--voltage", type=float, default=None, help="kV (companion only).")
 @click.option("--cs", type=float, default=None, help="mm (companion only).")
 @click.option("--amp-contrast", "amp_contrast", type=float, default=None, help="Amplitude contrast (companion only).")
@@ -150,8 +173,14 @@ def to_cets(sources, output, name, config_path, overwrite, fail_fast, **cli):
     default=None,
     help="Thickness Z in unbinned pixels (default: the reference tomogram).",
 )
-@click.option("--drop-x-rotation", "drop_x_rotation", is_flag=True, default=None)
-@click.option("--dose-per-tilt", "dose_per_tilt", type=float, default=None)
+@click.option(
+    "--drop-x-rotation",
+    "drop_x_rotation",
+    is_flag=True,
+    default=None,
+    help="Write alignments that carry volume X rotations, dropping them (an .aln cannot hold them).",
+)
+@click.option("--dose-per-tilt", "dose_per_tilt", type=float, default=None, help="Constant per-image exposure (e/Å²).")
 @click.option(
     "--acq-order",
     "acq_order",
@@ -159,12 +188,23 @@ def to_cets(sources, output, name, config_path, overwrite, fail_fast, **cli):
     default=None,
     help="A _TLT.txt-style file with the acquisition index (and dose) per raw section.",
 )
-@click.option("--defocus-hand", "defocus_hand", type=click.Choice(["-1", "1"]), default=None)
-@click.option("--link-stack/--no-link-stack", "link_stack", default=None)
-@click.option("--no-ctf", "no_ctf", is_flag=True, default=None)
-@click.option("--voltage", type=float, default=None)
-@click.option("--cs", type=float, default=None)
-@click.option("--amp-contrast", "amp_contrast", type=float, default=None)
+@click.option(
+    "--defocus-hand",
+    "defocus_hand",
+    type=click.Choice(["-1", "1"]),
+    default=None,
+    help="Defocus handedness column of _CTF.txt (default: companion; omitted when unknown).",
+)
+@click.option(
+    "--link-stack/--no-link-stack",
+    "link_stack",
+    default=None,
+    help="Symlink the tilt stack into the output directory [on].",
+)
+@click.option("--no-ctf", "no_ctf", is_flag=True, default=None, help="Do not write <stem>_CTF.txt.")
+@click.option("--voltage", type=float, default=None, help="kV for the -Cmd 2 hint (default: companion).")
+@click.option("--cs", type=float, default=None, help="mm for the -Cmd 2 hint (default: companion).")
+@click.option("--amp-contrast", "amp_contrast", type=float, default=None, help="Amplitude contrast for the hint.")
 @common_options
 def from_cets(document, output, regions, alignment, tomogram, config_path, overwrite, fail_fast, **cli):
     """Write AreTomo3 -Cmd 2 inputs (.aln, _TLT.txt, _CTF.txt) for the regions of a CETS dataset."""
