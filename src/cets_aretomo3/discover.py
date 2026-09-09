@@ -259,5 +259,5 @@ def discover(
                 run.warnings.append(f"{vol.name}: header {h['nx']}x{h['ny']}x{h['nz']} does not match RawSize {rx}x{ry} at any bin")
             if b > 0:
                 run.add("bin", b, f"{vol.name}#header / RawSize")
-                run.add("vol_voxel_header_a", h["voxel"][0], f"{vol.name}#header")
+                run.add("vol_voxel_header_a", round(h["voxel"][0], 6), f"{vol.name}#header")  # float32 header
     return run

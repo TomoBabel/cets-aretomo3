@@ -132,9 +132,16 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
         flip_vol = res.optional("flip_vol")
         if flip_vol in (1, 2, "1", "2"):
             dims = run.get("tomo_dims_px")
+            header_voxel = run.get("vol_voxel_header_a")
             implied = pix * width / dims[0]
+            if not header_voxel or header_voxel <= 0:
+                sr.warnings.append(f"{run.vol_path.name}: no voxel size in the header; using the raw-extent value {implied:.5f} Å")
+                header_voxel = implied
+            elif abs(header_voxel - implied) > 1e-3 * implied:
+                sr.warnings.append(f"{run.vol_path.name}: header voxel {header_voxel:.5f} Å differs from the raw-extent value {implied:.5f} Å; the header value is used")
+            # the declared (header) voxel size is used; the raw-extent value goes to the companion for information
             tomo = tomogram_entity(
-                tomogram_id=f"{stem}_tomo", path=_rel(run.vol_path, out_dir, paths_mode), size_px=dims, voxel_size_a=implied,
+                tomogram_id=f"{stem}_tomo", path=_rel(run.vol_path, out_dir, paths_mode), size_px=dims, voxel_size_a=float(header_voxel),
                 tilt_series_id=stem,
             )
             tomograms.append(tomo)
