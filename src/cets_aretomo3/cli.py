@@ -27,11 +27,32 @@ from cets_aretomo3.to_cets import aretomo3_to_cets
 
 PACKAGE = "cets-aretomo3"
 TO_CETS_OPTIONS = {
-    "pix", "tomo_size", "flip_vol", "mdoc_dir", "tilt_stack_dir", "dose_convention", "dose_per_tilt", "drop_locals",
-    "no_ctf", "paths", "voltage", "cs", "amp_contrast",
+    "pix",
+    "tomo_size",
+    "flip_vol",
+    "mdoc_dir",
+    "tilt_stack_dir",
+    "dose_convention",
+    "dose_per_tilt",
+    "drop_locals",
+    "no_ctf",
+    "paths",
+    "voltage",
+    "cs",
+    "amp_contrast",
 }
-FROM_CETS_OPTIONS = {"tomo_size", "drop_x_rotation", "dose_per_tilt", "acq_order", "defocus_hand", "link_stack", "no_ctf",
-                     "voltage", "cs", "amp_contrast"}
+FROM_CETS_OPTIONS = {
+    "tomo_size",
+    "drop_x_rotation",
+    "dose_per_tilt",
+    "acq_order",
+    "defocus_hand",
+    "link_stack",
+    "no_ctf",
+    "voltage",
+    "cs",
+    "amp_contrast",
+}
 
 
 @click.group()
@@ -42,17 +63,28 @@ def main():
 
 @main.command("to-cets")
 @click.argument("sources", nargs=-1, required=True)
-@click.option("-o", "--output", "output", required=True, type=click.Path(dir_okay=False), help="CETS dataset JSON to write.")
+@click.option(
+    "-o", "--output", "output", required=True, type=click.Path(dir_okay=False), help="CETS dataset JSON to write."
+)
 @click.option("--name", default=None, help="Dataset name (default: the output stem).")
 @click.option("--pix", type=float, default=None, help="Tilt-image pixel size (Å/px).")
-@click.option("--tomo-size", "tomo_size", type=float, default=None, help="Reconstruction thickness Z in unbinned pixels.")
-@click.option("--flip-vol", "flip_vol", type=click.Choice(["0", "1", "2"]), default=None,
-              help="The -FlipVol the run used (needed to describe <stem>_Vol.mrc; never inferred).")
+@click.option(
+    "--tomo-size", "tomo_size", type=float, default=None, help="Reconstruction thickness Z in unbinned pixels."
+)
+@click.option(
+    "--flip-vol",
+    "flip_vol",
+    type=click.Choice(["0", "1", "2"]),
+    default=None,
+    help="The -FlipVol the run used (needed to describe <stem>_Vol.mrc; never inferred).",
+)
 @click.option("--mdoc-dir", "mdoc_dir", type=click.Path(file_okay=False, exists=True), default=None)
 @click.option("--tilt-stack-dir", "tilt_stack_dir", type=click.Path(file_okay=False, exists=True), default=None)
 @click.option("--dose-convention", "dose_convention", type=click.Choice(["exclusive", "inclusive"]), default=None)
 @click.option("--dose-per-tilt", "dose_per_tilt", type=float, default=None, help="Constant per-image exposure (e/Å²).")
-@click.option("--drop-locals", "drop_locals", is_flag=True, default=None, help="Keep the global rows of a local alignment.")
+@click.option(
+    "--drop-locals", "drop_locals", is_flag=True, default=None, help="Keep the global rows of a local alignment."
+)
 @click.option("--no-ctf", "no_ctf", is_flag=True, default=None)
 @click.option("--paths", type=click.Choice(["relative", "absolute"]), default=None)
 @click.option("--voltage", type=float, default=None, help="kV (companion only).")
@@ -77,7 +109,8 @@ def to_cets(sources, output, name, config_path, overwrite, fail_fast, **cli):
         report.series.append(sr)
         try:
             run = discover(
-                aln_path, mdoc_dir=Path(flags["mdoc_dir"]) if "mdoc_dir" in flags else None,
+                aln_path,
+                mdoc_dir=Path(flags["mdoc_dir"]) if "mdoc_dir" in flags else None,
                 tilt_stack_dir=Path(flags["tilt_stack_dir"]) if "tilt_stack_dir" in flags else None,
                 no_ctf=bool(flags.get("no_ctf")),
             )
@@ -106,13 +139,26 @@ def to_cets(sources, output, name, config_path, overwrite, fail_fast, **cli):
 
 @main.command("from-cets")
 @click.argument("document", type=click.Path(exists=True, dir_okay=False))
-@click.option("-o", "--output", "output", required=True, type=click.Path(file_okay=False), help="AreTomo3 -Cmd 2 input directory.")
+@click.option(
+    "-o", "--output", "output", required=True, type=click.Path(file_okay=False), help="AreTomo3 -Cmd 2 input directory."
+)
 @selection_options
-@click.option("--tomo-size", "tomo_size", type=int, default=None, help="Thickness Z in unbinned pixels (default: the reference tomogram).")
+@click.option(
+    "--tomo-size",
+    "tomo_size",
+    type=int,
+    default=None,
+    help="Thickness Z in unbinned pixels (default: the reference tomogram).",
+)
 @click.option("--drop-x-rotation", "drop_x_rotation", is_flag=True, default=None)
 @click.option("--dose-per-tilt", "dose_per_tilt", type=float, default=None)
-@click.option("--acq-order", "acq_order", type=click.Path(exists=True, dir_okay=False), default=None,
-              help="A _TLT.txt-style file with the acquisition index (and dose) per raw section.")
+@click.option(
+    "--acq-order",
+    "acq_order",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="A _TLT.txt-style file with the acquisition index (and dose) per raw section.",
+)
 @click.option("--defocus-hand", "defocus_hand", type=click.Choice(["-1", "1"]), default=None)
 @click.option("--link-stack/--no-link-stack", "link_stack", default=None)
 @click.option("--no-ctf", "no_ctf", is_flag=True, default=None)
@@ -140,8 +186,15 @@ def from_cets(document, output, regions, alignment, tomogram, config_path, overw
         try:
             res = make_resolver(PACKAGE, "from-cets", flags, config, region.id, sr)
             cets_to_aretomo3(
-                region, res, sr, out_dir=out_dir, doc_dir=doc.parent, companion=companion,
-                alignment_selector=parse_alignment_selector(alignment), tomogram_selector=tomogram, overwrite=overwrite,
+                region,
+                res,
+                sr,
+                out_dir=out_dir,
+                doc_dir=doc.parent,
+                companion=companion,
+                alignment_selector=parse_alignment_selector(alignment),
+                tomogram_selector=tomogram,
+                overwrite=overwrite,
             )
         except Exception as e:  # noqa: BLE001
             sr.error = str(e)

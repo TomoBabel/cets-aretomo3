@@ -8,7 +8,7 @@ Never consulted: ``AreTomo3_Session.json``. Never inferred: FlipVol 1 vs 2 (both
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import mrcfile
 import numpy as np
@@ -57,7 +57,10 @@ def mrc_header(path: Path) -> dict:
         h = m.header
         vs = m.voxel_size
         return {
-            "nx": int(h.nx), "ny": int(h.ny), "nz": int(h.nz), "mode": int(h.mode),
+            "nx": int(h.nx),
+            "ny": int(h.ny),
+            "nz": int(h.nz),
+            "mode": int(h.mode),
             "voxel": (float(vs.x), float(vs.y), float(vs.z)),
         }
 
@@ -71,7 +74,7 @@ def _find_stack(stem: str, dirs: List[Path]) -> Optional[Path]:
     return None
 
 
-def _mdoc_sections(mdoc_path: Path) -> list:
+def _mdoc_sections(mdoc_path: Path) -> Tuple[Any, List[dict]]:
     from mdocfile.data_models import Mdoc
 
     m = Mdoc.from_file(str(mdoc_path))
@@ -170,7 +173,9 @@ def discover(
         h = mrc_header(stack_path)
         run.stack_path = stack_path
         if (h["nx"], h["ny"]) != tuple(run.get("image_dims_px")):
-            run.warnings.append(f"{stack_path.name}: header {h['nx']}x{h['ny']} differs from .aln RawSize {run.get('image_dims_px')}")
+            run.warnings.append(
+                f"{stack_path.name}: header {h['nx']}x{h['ny']} differs from .aln RawSize {run.get('image_dims_px')}"
+            )
         if h["nz"] != n_raw:
             run.warnings.append(f"{stack_path.name}: {h['nz']} sections for RawSize z = {n_raw}")
         run.add("image_dims_px", (h["nx"], h["ny"]), f"{stack_path.name}#header", override=True)
@@ -187,7 +192,9 @@ def discover(
             run.tlt_path = tlt_path
             dev = float(np.abs(np.array(t.tilts) - stage).max())
             if dev > 0.5:
-                run.warnings.append(f"{tlt_path.name}: tilt column deviates from .aln stage angles by up to {dev:.2f} deg")
+                run.warnings.append(
+                    f"{tlt_path.name}: tilt column deviates from .aln stage angles by up to {dev:.2f} deg"
+                )
             run.add("stage_tilt_deg", [float(v) for v in t.tilts], tlt_path.name, override=True)
             if t.has_acq_index:
                 run.add("acq_index_1b", list(t.acq_indices), tlt_path.name)
@@ -197,7 +204,9 @@ def discover(
     # mdoc: pixel size, voltage, order, dose, frame names
     mdoc_path = Path(mdoc) if mdoc else None
     if mdoc_path is None:
-        cands = ([Path(mdoc_dir) / f"{stem}.mdoc"] if mdoc_dir else []) + ([aln_path.with_name(f"{stem}.mdoc")] if adjacent else [])
+        cands = ([Path(mdoc_dir) / f"{stem}.mdoc"] if mdoc_dir else []) + (
+            [aln_path.with_name(f"{stem}.mdoc")] if adjacent else []
+        )
         mdoc_path = next((c for c in cands if c.exists()), None)
     if mdoc_path is not None and mdoc_path.exists():
         m, sections = _mdoc_sections(mdoc_path)
@@ -220,12 +229,16 @@ def discover(
         else:
             # _TLT.txt (AreTomo3's own record of order/dose/angles) wins over the mdoc when both exist
             run.add("acq_index_1b", acq, mdoc_path.name)
-            run.add("stage_tilt_deg", [float(r["TiltAngle"]) for r in rows], mdoc_path.name, override=run.tlt_path is None)
+            run.add(
+                "stage_tilt_deg", [float(r["TiltAngle"]) for r in rows], mdoc_path.name, override=run.tlt_path is None
+            )
             doses = [float(r.get("ExposureDose", 0.0) or 0.0) for r in rows]
             if sum(doses) > 0:
                 run.add("exposure", doses, f"{mdoc_path.name}#ExposureDose")
             if all(r.get("SubFramePath") for r in rows):
-                run.add("frame_names", [_sub_frame_name(r["SubFramePath"]) for r in rows], f"{mdoc_path.name}#SubFramePath")
+                run.add(
+                    "frame_names", [_sub_frame_name(r["SubFramePath"]) for r in rows], f"{mdoc_path.name}#SubFramePath"
+                )
 
     # CTF
     if not no_ctf:
@@ -256,7 +269,9 @@ def discover(
                 run.add("vol_layout", "xzy", f"{vol.name}#header")  # FlipVol 0
                 run.add("tomo_dims_px", (h["nx"], h["nz"], h["ny"]), f"{vol.name}#header (xzy)")
             else:
-                run.warnings.append(f"{vol.name}: header {h['nx']}x{h['ny']}x{h['nz']} does not match RawSize {rx}x{ry} at any bin")
+                run.warnings.append(
+                    f"{vol.name}: header {h['nx']}x{h['ny']}x{h['nz']} does not match RawSize {rx}x{ry} at any bin"
+                )
             if b > 0:
                 run.add("bin", b, f"{vol.name}#header / RawSize")
                 run.add("vol_voxel_header_a", round(h["voxel"][0], 6), f"{vol.name}#header")  # float32 header

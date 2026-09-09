@@ -63,12 +63,19 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
     if not aln.is_rigid:
         msg = f"{aln.NumPatches} patches x {len(aln.GlobalAlignments)} tilts of local alignment"
         if not drop_locals:
-            raise ValueError(f"{stem}: the .aln carries a local alignment ({msg}); the rigid profile cannot represent it - pass --drop-locals to keep the global rows only")
+            raise ValueError(
+                f"{stem}: the .aln carries a local alignment ({msg}); the rigid profile cannot represent it - pass --drop-locals to keep the global rows only"
+            )
         sr.dropped.append(f"local alignment ({msg})")
 
     # --- tilt images ---------------------------------------------------------------------------
     width, height = run.get("image_dims_px")
-    stage = [float(v) for v in res.value("stage_tilt_deg", discovered=run.get("stage_tilt_deg"), note=run.source("stage_tilt_deg") or "")]
+    stage = [
+        float(v)
+        for v in res.value(
+            "stage_tilt_deg", discovered=run.get("stage_tilt_deg"), note=run.source("stage_tilt_deg") or ""
+        )
+    ]
     acq = res.optional("acq_index_1b", discovered=run.get("acq_index_1b"), note=run.source("acq_index_1b") or "")
     exposure = run.get("exposure")
     dose_per_tilt = res.optional("dose_per_tilt")
@@ -80,11 +87,13 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
     if acq is not None and exposure is not None:
         pre = pre_exposure([int(a) for a in acq], [float(e) for e in exposure], dose_convention)
     else:
-        sr.warnings.append("no acquisition order + per-image exposure (from _TLT.txt / mdoc / --dose-per-tilt): accumulated_dose left null")
+        sr.warnings.append(
+            "no acquisition order + per-image exposure (from _TLT.txt / mdoc / --dose-per-tilt): accumulated_dose left null"
+        )
 
     ctfs: Optional[List[Any]] = None
     df_hand = None
-    if not no_ctf and run.get("ctf") is not None:
+    if not no_ctf and run.get("ctf") is not None and run.ctf_path is not None:
         c = run.get("ctf")
         res.resolve("ctf", discovered=run.ctf_path.name, note="_CTF.txt")
         ctfs = [cets_ctf.from_aretomo3_row(r) for r in c.rows]
@@ -108,25 +117,37 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
         movie_stack_series_id=f"{stem}_movies" if frame_names else None,
     )
     movie_series = []
-    if frame_names:
-        movie_series.append(movie_stack_series_entity(
-            series_id=f"{stem}_movies",
-            stacks=[{"id": movie_ids[i], "path": frame_names[i]} for i in range(n_raw)],
-        ))
+    if frame_names and movie_ids is not None:
+        movie_series.append(
+            movie_stack_series_entity(
+                series_id=f"{stem}_movies",
+                stacks=[{"id": movie_ids[i], "path": frame_names[i]} for i in range(n_raw)],
+            )
+        )
 
     # --- reference volume: the alignment's own bin-1 box (always) + the reconstructed file when declared ---
+    tomo_dims_px = run.get("tomo_dims_px")
+    tomo_dims_src = run.source("tomo_dims_px")
     vol_z = res.require(
-        "tomo_size", discovered=(run.get("tomo_dims_px")[2] * run.get("bin") if run.get("tomo_dims_px") else None),
-        note=(run.source("tomo_dims_px") + " x bin" if run.source("tomo_dims_px") else ""),
+        "tomo_size",
+        discovered=(tomo_dims_px[2] * run.get("bin") if tomo_dims_px else None),
+        note=(f"{tomo_dims_src} x bin" if tomo_dims_src else ""),
     )
     vol_z_px = int(round(float(vol_z)))
     hub = Alignment.from_aretomo3(aln, vol_size_px=(width, height, vol_z_px), pixel_size_a=pix)
     ref_tomo = tomogram_entity(
-        tomogram_id=f"{stem}_volume", path=None, size_px=(width, height, vol_z_px), voxel_size_a=pix, tilt_series_id=stem,
+        tomogram_id=f"{stem}_volume",
+        path=None,
+        size_px=(width, height, vol_z_px),
+        voxel_size_a=pix,
+        tilt_series_id=stem,
     )
     tomograms = [ref_tomo]
     tomo_companions = {
-        ref_tomo.id: TomogramCompanion(voxel_implied_a=pix, source_ref="alignment box (RawSize x pixel, Z from --tomo-size or _Vol.mrc x bin); no file"),
+        ref_tomo.id: TomogramCompanion(
+            voxel_implied_a=pix,
+            source_ref="alignment box (RawSize x pixel, Z from --tomo-size or _Vol.mrc x bin); no file",
+        ),
     }
     if run.vol_path is not None and run.get("vol_layout") == "xyz":
         flip_vol = res.optional("flip_vol")
@@ -135,34 +156,60 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
             header_voxel = run.get("vol_voxel_header_a")
             implied = pix * width / dims[0]
             if not header_voxel or header_voxel <= 0:
-                sr.warnings.append(f"{run.vol_path.name}: no voxel size in the header; using the raw-extent value {implied:.5f} Å")
+                sr.warnings.append(
+                    f"{run.vol_path.name}: no voxel size in the header; using the raw-extent value {implied:.5f} Å"
+                )
                 header_voxel = implied
             elif abs(header_voxel - implied) > 1e-3 * implied:
-                sr.warnings.append(f"{run.vol_path.name}: header voxel {header_voxel:.5f} Å differs from the raw-extent value {implied:.5f} Å; the header value is used")
+                sr.warnings.append(
+                    f"{run.vol_path.name}: header voxel {header_voxel:.5f} Å differs from the raw-extent value {implied:.5f} Å; the header value is used"
+                )
             # the declared (header) voxel size is used; the raw-extent value goes to the companion for information
             tomo = tomogram_entity(
-                tomogram_id=f"{stem}_tomo", path=_rel(run.vol_path, out_dir, paths_mode), size_px=dims, voxel_size_a=float(header_voxel),
+                tomogram_id=f"{stem}_tomo",
+                path=_rel(run.vol_path, out_dir, paths_mode),
+                size_px=dims,
+                voxel_size_a=float(header_voxel),
                 tilt_series_id=stem,
             )
             tomograms.append(tomo)
             tomo_companions[tomo.id] = TomogramCompanion(
-                voxel_header_a=run.get("vol_voxel_header_a"), voxel_implied_a=implied, flip_vol=int(flip_vol),
-                reconstruction_software="AreTomo3", source_ref=str(run.vol_path.name),
+                voxel_header_a=run.get("vol_voxel_header_a"),
+                voxel_implied_a=implied,
+                flip_vol=int(flip_vol),
+                reconstruction_software="AreTomo3",
+                source_ref=str(run.vol_path.name),
             )
             if int(flip_vol) == 2:
-                sr.warnings.append("-FlipVol 2 volumes are axis-reversed relative to -FlipVol 1; the grid offset/hand is recorded in the companion, not modelled")
+                sr.warnings.append(
+                    "-FlipVol 2 volumes are axis-reversed relative to -FlipVol 1; the grid offset/hand is recorded in the companion, not modelled"
+                )
         else:
-            sr.warnings.append(f"{run.vol_path.name} found but -FlipVol not declared (--flip-vol 1|2): no Tomogram entity for the file")
+            sr.warnings.append(
+                f"{run.vol_path.name} found but -FlipVol not declared (--flip-vol 1|2): no Tomogram entity for the file"
+            )
     elif run.vol_path is not None:
-        sr.warnings.append(f"{run.vol_path.name} is an XZY (-FlipVol 0) volume: not described (declare --flip-vol and use an XYZ volume)")
+        sr.warnings.append(
+            f"{run.vol_path.name} is an XZY (-FlipVol 0) volume: not described (declare --flip-vol and use an XYZ volume)"
+        )
 
     reference = ReferenceVolume.from_tomogram(ref_tomo)
     cets_alignment = alignment_to_cets(
-        hub, tilt_series_id=stem, alignment_name=ALIGNMENT_NAME, image=image_frame(ts.images[0]), reference=reference,
+        hub,
+        tilt_series_id=stem,
+        alignment_name=ALIGNMENT_NAME,
+        image=image_frame(ts.images[0]),
+        reference=reference,
         frame=FRAME_CONVENTIONS["ARETOMO3"],
     )
-    sr.gates.append(Gate("rows", len(cets_alignment.projection_alignments) == len(aln.GlobalAlignments),
-                         value=len(cets_alignment.projection_alignments), expected=len(aln.GlobalAlignments)))
+    sr.gates.append(
+        Gate(
+            "rows",
+            len(cets_alignment.projection_alignments) == len(aln.GlobalAlignments),
+            value=len(cets_alignment.projection_alignments),
+            expected=len(aln.GlobalAlignments),
+        )
+    )
     sr.gates.append(Gate("dark_sections", True, value=aln.dark_indices()))
 
     # --- companion --------------------------------------------------------------------------------
@@ -193,14 +240,25 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
     if run.get("beta_offset_deg"):
         dropped.append(f"BetaOffset {run.get('beta_offset_deg')} (CTF-only in AreTomo3; recorded)")
     aln_comp = AlignmentCompanion(
-        name=ALIGNMENT_NAME, tilt_series_id=stem, format="ARETOMO3",
-        alignment_type="GLOBAL", is_portal_standard=True,
-        reference_tomogram_id=ref_tomo.id, tomogram_ids=[t.id for t in tomograms],
+        name=ALIGNMENT_NAME,
+        tilt_series_id=stem,
+        format="ARETOMO3",
+        alignment_type="GLOBAL",
+        is_portal_standard=True,
+        reference_tomogram_id=ref_tomo.id,
+        tomogram_ids=[t.id for t in tomograms],
         native_volume_dimension_a=hub.volume_dimension,
-        frame_convention={"image_center": "half", "volume_center": "half"}, dropped=dropped,
-        thickness_px=run.get("thickness_px"), source_ref=str(run.aln_path.name),
+        frame_convention={"image_center": "half", "volume_center": "half"},
+        dropped=dropped,
+        thickness_px=run.get("thickness_px"),
+        source_ref=str(run.aln_path.name),
     )
-    region = region_entity(region_id=stem, tilt_series=[ts], alignments=[cets_alignment], tomograms=tomograms,
-                           movie_stack_series=movie_series)
+    region = region_entity(
+        region_id=stem,
+        tilt_series=[ts],
+        alignments=[cets_alignment],
+        tomograms=tomograms,
+        movie_stack_series=movie_series,
+    )
     sr.provenance = res.provenance()
     return SeriesResult(region, ts_comp, aln_comp, tomo_companions)

@@ -22,8 +22,15 @@ ALN_HEADER = "# AreTomo Alignment / Priims bprmMn"
 
 
 def aretomo3_hint(
-    root: Path, stem: str, *, pixel_size_a=None, voltage_kv=None, cs_mm=None, amplitude_contrast=None,
-    vol_z_px=None, has_ctf: bool = False,
+    root: Path,
+    stem: str,
+    *,
+    pixel_size_a=None,
+    voltage_kv=None,
+    cs_mm=None,
+    amplitude_contrast=None,
+    vol_z_px=None,
+    has_ctf: bool = False,
 ) -> str:
     """The ``-Cmd 2`` line for the written directory (arewarpion ``project/aretomo.py::aretomo3_hint``).
     ``-AtBin`` is the user's choice; ``-CorrCTF 1`` is suggested only when a ``_CTF.txt`` was written."""
@@ -69,10 +76,16 @@ def cets_to_aretomo3(
     reference = ReferenceVolume.from_tomogram(tomo)
     native = comp_aln.native_volume_dimension_a if comp_aln and comp_aln.native_volume_dimension_a else None
     hub = alignment_from_cets(
-        cets_alignment, tilt_series=ts, reference=reference, target_frame=FRAME_CONVENTIONS["ARETOMO3"],
-        native_dimension_a=native, format_="ARETOMO3",
+        cets_alignment,
+        tilt_series=ts,
+        reference=reference,
+        target_frame=FRAME_CONVENTIONS["ARETOMO3"],
+        native_dimension_a=native,
+        format_="ARETOMO3",
     )
-    res.resolve("reference_tomogram", discovered=tomo.id, note="companion" if comp_aln and comp_aln.tomogram_ids else "region")
+    res.resolve(
+        "reference_tomogram", discovered=tomo.id, note="companion" if comp_aln and comp_aln.tomogram_ids else "region"
+    )
 
     # representability: X rotation
     if hub.has_x_rotation:
@@ -136,14 +149,19 @@ def cets_to_aretomo3(
         tlt = AreTomo3TLT.from_aln(aln, acq_index_1b=acq, dose=exposure)
     else:
         tlt = AreTomo3TLT.from_aln(aln)
-        sr.warnings.append("no acquisition order / exposure (companion, --acq-order, --dose-per-tilt): _TLT.txt written with the tilt column only")
+        sr.warnings.append(
+            "no acquisition order / exposure (companion, --acq-order, --dose-per-tilt): _TLT.txt written with the tilt column only"
+        )
 
     # _CTF.txt when every image carries CTF metadata
     ctf_file = None
     ctfs = [im.ctf_metadata for im in images]
     if all(c is not None and c.defocus_u is not None for c in ctfs) and not res.optional("no_ctf", absent=False):
         df_hand = res.optional("defocus_hand", companion=(comp_ts.defocus_hand if comp_ts else None))
-        rows = [cets_ctf.to_aretomo3_row(c, i + 1, df_hand=None if df_hand is None else int(df_hand)) for i, c in enumerate(ctfs)]
+        rows = [
+            cets_ctf.to_aretomo3_row(c, i + 1, df_hand=None if df_hand is None else int(df_hand))
+            for i, c in enumerate(ctfs)
+        ]
         ctf_file = AreTomo3CTF(rows=rows)
         if any(c.phase_shift is None for c in ctfs):
             sr.warnings.append("some images have no phase_shift: 0 written")
@@ -172,22 +190,37 @@ def cets_to_aretomo3(
             os.symlink(stack_src.resolve(), link)
         outputs["stack"] = link
     elif stack_src is not None:
-        sr.warnings.append(f"tilt stack {ts.path} not found next to the document; place it at {out_dir / (stem + '.mrc')}")
+        sr.warnings.append(
+            f"tilt stack {ts.path} not found next to the document; place it at {out_dir / (stem + '.mrc')}"
+        )
 
     # gates: re-read what was written
     from cryoet_alignment.io.aretomo3 import AreTomo3ALN
 
     reread = AreTomo3ALN.from_file(str(outputs["aln"]))
-    sr.gates.append(Gate("aln_invariants", reread.n_raw == n_raw and len(reread.GlobalAlignments) == len(aligned),
-                         value=(reread.n_raw, len(reread.GlobalAlignments)), expected=(n_raw, len(aligned))))
+    sr.gates.append(
+        Gate(
+            "aln_invariants",
+            reread.n_raw == n_raw and len(reread.GlobalAlignments) == len(aligned),
+            value=(reread.n_raw, len(reread.GlobalAlignments)),
+            expected=(n_raw, len(aligned)),
+        )
+    )
     sr.gates.append(Gate("tlt_rows", AreTomo3TLT.from_file(str(outputs["tlt"])).n_rows == n_raw, expected=n_raw))
-    sr.hints.append(aretomo3_hint(
-        out_dir, stem, pixel_size_a=pix,
-        voltage_kv=res.optional("voltage", companion=(comp_ts.voltage_kv if comp_ts else None)),
-        cs_mm=res.optional("cs", companion=(comp_ts.cs_mm if comp_ts else None)),
-        amplitude_contrast=res.optional("amp_contrast", companion=(comp_ts.amplitude_contrast if comp_ts else None)),
-        vol_z_px=int(vol_z), has_ctf=ctf_file is not None,
-    ))
+    sr.hints.append(
+        aretomo3_hint(
+            out_dir,
+            stem,
+            pixel_size_a=pix,
+            voltage_kv=res.optional("voltage", companion=(comp_ts.voltage_kv if comp_ts else None)),
+            cs_mm=res.optional("cs", companion=(comp_ts.cs_mm if comp_ts else None)),
+            amplitude_contrast=res.optional(
+                "amp_contrast", companion=(comp_ts.amplitude_contrast if comp_ts else None)
+            ),
+            vol_z_px=int(vol_z),
+            has_ctf=ctf_file is not None,
+        )
+    )
     sr.outputs.update({k: str(v) for k, v in outputs.items()})
     sr.provenance = res.provenance()
     return outputs

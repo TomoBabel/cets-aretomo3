@@ -94,7 +94,9 @@ def test_roundtrip_aln_and_tlt_identical(run_dir, tmp_path):
     src_ctf = AreTomo3CTF.from_file(run_dir / f"{STEM}_CTF.txt")
     for a, b in zip(src_ctf.rows, ctf.rows, strict=True):
         # the profile wraps the astigmatism angle into [0, 180) (an identity of the cos(2(theta-angle)) field)
-        assert (a.df_max_a, a.df_min_a, a.azimuth_deg % 180.0) == pytest.approx((b.df_max_a, b.df_min_a, b.azimuth_deg), abs=1e-6)
+        assert (a.df_max_a, a.df_min_a, a.azimuth_deg % 180.0) == pytest.approx(
+            (b.df_max_a, b.df_min_a, b.azimuth_deg), abs=1e-6
+        )
         assert a.phase_rad == pytest.approx(b.phase_rad, abs=1e-9) and b.df_hand == -1  # from the companion
     assert (back / f"{STEM}.mrc").is_symlink()
 
@@ -108,7 +110,9 @@ def test_dark_frames_roundtrip(tmp_path):
     ds = load_dataset(out)
     region = ds.regions[0]
     assert len(region.tilt_series[0].images) == NZ
-    assert [pa.tilt_image_id for pa in region.alignments[0].projection_alignments] == [f"{STEM}_{z}" for z in range(NZ) if z not in (2, 29)]
+    assert [pa.tilt_image_id for pa in region.alignments[0].projection_alignments] == [
+        f"{STEM}_{z}" for z in range(NZ) if z not in (2, 29)
+    ]
     back = tmp_path / "back"
     r = _run(["from-cets", str(out), "-o", str(back)])
     assert "tilt column only" in r.stderr  # no order/exposure without mdoc/_TLT.txt
@@ -166,7 +170,10 @@ def test_config_and_selection(run_dir, tmp_path):
     assert "paths = 'absolute'  [config]" in r.stdout and "flip_vol = 1  [config]" in r.stdout
     assert Path(load_dataset(out).regions[0].tilt_series[0].path).is_absolute()
     (tmp_path / "bad.yaml").write_text("cets:\n  pixl: 1\n")
-    r = _run(["to-cets", str(run_dir), "-o", str(tmp_path / "z.cets.json"), "--config", str(tmp_path / "bad.yaml")], expect_ok=False)
+    r = _run(
+        ["to-cets", str(run_dir), "-o", str(tmp_path / "z.cets.json"), "--config", str(tmp_path / "bad.yaml")],
+        expect_ok=False,
+    )
     assert "unknown option" in (r.stderr + r.stdout)
     # two alignments in one region -> explicit selection
     doc = json.loads(out.read_text())
