@@ -179,6 +179,7 @@ def aretomo3_to_cets(run: AreTomo3Run, res: Resolver, sr: SeriesReport, *, out_d
         beta_offset_deg=run.get("beta_offset_deg"),
         defocus_hand=df_hand,
         defocus_hand_convention="aretomo3 _CTF.txt dfHand" if df_hand is not None else None,
+        collection_metadata_path=_rel(run.mdoc_path, out_dir, paths_mode) if run.mdoc_path else None,
         images=images,
     )
     dropped = list(sr.dropped)
