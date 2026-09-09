@@ -118,7 +118,7 @@ def test_dark_frames_roundtrip(tmp_path):
     assert AreTomo3TLT.from_file(back / f"{STEM}_TLT.txt").tilts == pytest.approx(src.raw_tilts())
 
 
-def test_g6_exposure_preserved_only_with_companion(tmp_path):
+def test_exposure_preserved_only_with_companion(tmp_path):
     exposures = [2.0, 3.0, 100.0] + [1.0] * (NZ - 3)
     run = make_run(tmp_path, ctf=False, exposures=exposures)
     out = tmp_path / "o" / "e.cets.json"
@@ -157,7 +157,7 @@ def test_x_rotation_refused_unless_dropped(run_dir, tmp_path):
     assert "dropped: volume X rotation up to 0.35" in r.stderr
 
 
-def test_g13_config_and_selection(run_dir, tmp_path):
+def test_config_and_selection(run_dir, tmp_path):
     cfg = tmp_path / "cets.yaml"
     cfg.write_text("cets:\n  dose_convention: exclusive\n  paths: absolute\ncets-aretomo3:\n  to-cets: {flip_vol: 1}\n")
     out = tmp_path / "o" / "c.cets.json"
