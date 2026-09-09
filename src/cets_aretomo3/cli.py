@@ -120,7 +120,7 @@ def to_cets(sources, output, name, config_path, overwrite, fail_fast, **cli):
     if out.exists() and not overwrite:
         raise click.ClickException(f"{out} exists (use --overwrite)")
     out.parent.mkdir(parents=True, exist_ok=True)
-    config = load_config(config_path, TO_CETS_OPTIONS)
+    config = load_config(config_path, TO_CETS_OPTIONS, PACKAGE, "to-cets")
     flags = {k: v for k, v in cli.items() if v is not None}
     if "flip_vol" in flags:
         flags["flip_vol"] = int(flags["flip_vol"])
@@ -212,7 +212,7 @@ def from_cets(document, output, regions, alignment, tomogram, config_path, overw
     ds = load_dataset(doc)
     companion = Companion.load_for(doc)
     out_dir = Path(output)
-    config = load_config(config_path, FROM_CETS_OPTIONS)
+    config = load_config(config_path, FROM_CETS_OPTIONS, PACKAGE, "from-cets")
     flags = {k: v for k, v in cli.items() if v is not None}
     if "defocus_hand" in flags:
         flags["defocus_hand"] = int(flags["defocus_hand"])
